@@ -617,6 +617,26 @@ def make_tss_locus(gene, start_dict, upstream, downstream):
         return Locus(start_dict[gene]['chr'], start - upstream, start + downstream, '+', gene)
 
 
+def gff_to_locus_collection(gff, window=500):
+    """Open a gff file and turn it into a LocusCollection instance."""
+    loci_list = []
+    if isinstance(gff, str):
+        gff = parse_table(gff, '\t')
+
+    for line in gff:
+        #USE line[1] as the locus ID.  If that is empty use line[8]
+        if len(line[1]):
+            name = line[1]
+        elif len(line[8]):
+            name = line[8]
+        else:
+            name = '{}:{}:{}-{}'.format(line[0],line[6], line[3], line[4])
+
+        loci_list.append(Locus(line[0], line[3], line[4], line[6], name))
+
+    return LocusCollection(loci_list, window)
+
+
 # ==================================================================
 # ==========================BAM CLASS===============================
 # ==================================================================
@@ -643,7 +663,7 @@ class Bam(object):
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
             shell=True,
-        )
+        )  # TODO: this does not produce an error if samtools are not installed
         stat_lines = stats.stdout.readlines()
         stats.stdout.close()
 
@@ -663,7 +683,7 @@ class Bam(object):
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
             shell=True,
-        )
+        )  # TODO: this does not produce an error if samtools are not installed
         read_stat_lines = read_stats.stdout.readlines()
         read_stats.stdout.close()
 
@@ -675,7 +695,7 @@ class Bam(object):
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 shell=True,
-            )
+            )  # TODO: this does not produce an error if samtools are not installed
             read_stat_lines = read_stats.stdout.readlines()
             read_stats.stdout.close()
 

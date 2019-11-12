@@ -32,6 +32,14 @@ setup(
 
     install_requires=['numpy'],
 
+    scripts=['pipeline_tools/scripts/enhancerPromoter_waterfall.R'],
+
+    entry_points={
+        'console_scripts': [
+            'enhancerPromoter=pipeline_tools.tools.enhancerPromoter:main',
+        ]
+    },
+
     package_data={
 		'pipeline_tools': ['annotation/*'],
 	},
@@ -47,5 +55,5 @@ setup(
         'Programming Language :: Python :: 3',
     ],
 
-    keywords=['bioinformatics', 'pipeline', 'linlab'],
+    keywords=['bioinformatics', 'pipeline', 'linlab', 'enhancerPromoter'],
 )
