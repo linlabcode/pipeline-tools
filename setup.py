@@ -30,13 +30,14 @@ setup(
 
     packages=find_packages(exclude=['tests', 'tests.*', '*.tests', '*.tests.*']),
 
-    install_requires=['numpy'],
+    install_requires=['numpy', 'scipy'],
 
     scripts=['pipeline_tools/scripts/enhancerPromoter_waterfall.R'],
 
     entry_points={
         'console_scripts': [
             'enhancerPromoter=pipeline_tools.tools.enhancerPromoter:main',
+            'out_degree_delta=pipeline_tools.tools.out_degree_delta:main',
         ]
     },
 
@@ -55,5 +56,5 @@ setup(
         'Programming Language :: Python :: 3',
     ],
 
-    keywords=['bioinformatics', 'pipeline', 'linlab', 'enhancerPromoter'],
+    keywords=['bioinformatics', 'pipeline', 'linlab', 'enhancerPromoter', 'out_degree_delta'],
 )
