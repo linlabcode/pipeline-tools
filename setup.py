@@ -32,12 +32,16 @@ setup(
 
     install_requires=['numpy', 'scipy'],
 
-    scripts=['pipeline_tools/scripts/enhancerPromoter_waterfall.R'],
+    scripts=[
+        'pipeline_tools/scripts/enhancerPromoter_waterfall.R',
+        'pipeline_tools/scripts/bamPlot_turbo.R',
+    ],
 
     entry_points={
         'console_scripts': [
             'enhancerPromoter=pipeline_tools.tools.enhancerPromoter:main',
             'out_degree_delta=pipeline_tools.tools.out_degree_delta:main',
+            'bamPlot_turbo=pipeline_tools.tools.bamPlot_turbo:main',
         ]
     },
 
@@ -56,5 +60,12 @@ setup(
         'Programming Language :: Python :: 3',
     ],
 
-    keywords=['bioinformatics', 'pipeline', 'linlab', 'enhancerPromoter', 'out_degree_delta'],
+    keywords=[
+        'bioinformatics',
+        'pipeline',
+        'linlab',
+        'enhancerPromoter',
+        'out_degree_delta',
+        'bamPlot_turbo',
+    ],
 )

@@ -256,6 +256,96 @@ def refseq_from_key(refseq_key_list, refseq_dict, refseq_table):
     return type_refseq
 
 
+def make_genes(annot_file, gene_list=[], as_dict=False):
+    """Return list of gene objects.
+
+    Takes in a refseq or ensembl annotation file and enters all identifiers in the gene_list into
+    a list as gene objects.
+
+    """
+    if as_dict:
+        genes = {}
+    else:
+        genes = []
+    if isinstance(gene_list, str):
+        print('importing gene list from {}'.format(gene_list))
+        gene_list = parse_table(gene_list, '\t')
+        gene_list = [line[0] for line in gene_list]
+
+    if annot_file.upper().count('REFSEQ') == 1:
+        ref_table, ref_dict = import_refseq(annot_file)
+
+        if not gene_list:
+            gene_list = [*ref_dict]
+
+        for refseq_id in gene_list:
+            if refseq_id not in ref_dict:
+                continue
+
+            gene_index = ref_dict[refseq_id][0]
+            gene_line = ref_table[int(gene_index)]
+            exon_starts = list(map(int, gene_line[9].split(',')[:-1]))
+            exon_ends = list(map(int, gene_line[10].split(',')[:-1]))
+
+            gene = Gene(
+                refseq_id,
+                gene_line[2],
+                gene_line[3],
+                [int(gene_line[4]), int(gene_line[5])],
+                [int(gene_line[6]), int(gene_line[7])],
+                exon_starts,
+                exon_ends,
+                gene_line[12],
+            )
+
+            if as_dict:
+                genes[refseq_id] = gene
+            else:
+                genes.append(gene)
+
+    return genes
+
+
+def make_transcript_collection(annot_file, up_search, down_search, window=500, gene_list=[]):
+    """Makes a LocusCollection w/ each transcript as a locus.
+
+    Takes in either a refseqfile or an ensembl GFF.
+
+    """
+    if annot_file.upper().count('REFSEQ') == 1:
+        refseq_table, refseq_dict = import_refseq(annot_file)
+        locus_list = []
+        ticker = 0
+        if not gene_list:
+            gene_list = refseq_dict.keys()
+
+        for line in refseq_table[1:]:
+            if line[1] in gene_list:
+                if line[3] == '-':
+                    locus = Locus(
+                        line[2],
+                        int(line[4]) - down_search,
+                        int(line[5]) + up_search,
+                        line[3],
+                        line[1],
+                    )
+                else:
+                    locus = Locus(
+                        line[2],
+                        int(line[4]) - up_search,
+                        int(line[5]) + down_search,
+                        line[3],
+                        line[1],
+                    )
+                locus_list.append(locus)
+                ticker += 1
+                if not ticker % 1000:
+                    print(ticker)
+
+    trans_collection = LocusCollection(locus_list, window)
+    return trans_collection
+
+
 def import_bound_region(bound_region_file, name):
     """Imports bound regions in either bed format or in error model format."""
     bound = parse_table(bound_region_file, '\t')
@@ -577,6 +667,138 @@ class LocusCollection(object):
                 continue
 
         return stitched_collection
+
+
+#==================================================================
+#========================GENE INSTANCE=============================
+#==================================================================
+# This is a gene object.  Unlike the previous gene_object, this actually represents
+# a gene, as opposed to a whole set of genes, which was a poor design in the first place.
+
+class Gene:
+    """Gene object."""
+    def __init__(self, name, chr, sense, tx_coords, cd_coords, ex_starts, ex_ends,
+                 common_name=''):
+        """Initialize attributes.
+
+        :param str name: name of the gene
+        :param list tx_coords: list of coords defining the boundaries of the transcipt
+        :param cd_coords: list of coords defining the beginning and end of the coding region
+        :param ex_starts: list of coords marking the beginning of each exon
+        :param ex_ends: list of coords marking the end of each exon
+
+        """
+        self._name = name
+        self._common_name = common_name
+        self._tx_locus = Locus(chr, min(tx_coords), max(tx_coords), sense, self._name)
+        if cd_coords == None:
+            self._cd_locus = None
+        else:
+            self._cd_locus = Locus(chr, min(cd_coords), max(cd_coords), sense)
+
+        ex_starts = sorted(map(lambda i: i, ex_starts))
+        ex_ends = sorted(map(lambda i: i, ex_ends))
+
+        self._tx_exons = []
+        self._cd_exons = []
+        self._introns = []
+
+        cd_exon_count = 0
+
+        for n in range(len(ex_starts)):
+            first_locus = Locus(chr, ex_starts[n], ex_starts[n], sense)
+            second_locus = Locus(chr, ex_ends[n], ex_ends[n], sense)
+
+            # Add the transcription unit exon
+            tx_exon = Locus(chr, ex_starts[n], ex_ends[n], sense)
+
+            self._tx_exons.append(tx_exon)
+
+            # Add Coding Exons
+            # Need to make sure that the current exon is actually in the coding region of the gene first
+            if self.is_coding() and tx_exon.overlaps(self._cd_locus):
+                if not first_locus.overlaps(self._cd_locus):
+                    first_coord = min(cd_coords)
+                else:
+                    first_coord = ex_starts[n]
+
+                if not second_locus.overlaps(self._cd_locus):
+                    second_coord = max(cd_coords)
+                else:
+                    second_coord = ex_ends[n]
+
+                new_cd_exon = Locus(chr, first_coord, second_coord, sense)
+                self._cd_exons.append(new_cd_exon)
+
+            # Add Introns
+            if n < len(ex_starts) - 1:
+                self._introns.append(Locus(chr, ex_ends[n] + 1, ex_starts[n + 1] - 1, sense))
+
+        if self.is_coding():
+            if sense == '+':
+                self._fp_utr = Locus(chr, min(tx_coords), min(cd_coords) - 1, sense)
+                self._tp_utr = Locus(chr, max(cd_coords) + 1, max(tx_coords), sense)
+            elif sense == '-':
+                self._fp_utr = Locus(chr, max(cd_coords) + 1, max(tx_coords), sense)
+                self._tp_utr = Locus(chr, min(tx_coords), min(cd_coords) - 1, sense)
+        else:
+            self._fp_utr = None
+            self._tp_utr = None
+
+    def common_name(self): return self._common_name
+    def name(self): return self._name
+    def chr(self): return self._tx_locus.chr
+    def sense(self): return self._tx_locus.sense
+
+    def tx_locus(self):
+        """locus of full transcript."""
+        return self._tx_locus
+
+    def cd_locus(self):
+        """Locus from start codon to end codon."""
+        return self._cd_locus
+
+    def tx_exons(self):
+        """List of loci."""
+        return list(map(lambda i: i, self._tx_exons))
+
+    def cd_exons(self):
+        """List of loci."""
+        return list(map(lambda i: i, self._cd_exons))
+
+    def introns(self):
+        """List of loci."""
+        return list(map(lambda i: i, self._introns))
+
+    def fp_utr(self):
+        """Locus."""
+        return self._fp_utr
+
+    def tp_utr(self):
+        """Locus."""
+        return self._tp_utr
+
+    def is_coding(self):
+        """Boolean if this gene is protein-coding."""
+        return not(self._cd_locus.start == 0 and self._cd_locus.end == 0)
+
+    def tss(self, upstream=0, downstream=0):
+        if self._tx_locus.sense == '-':
+            return Locus(
+                self._tx_locus.chr,
+                self._tx_locus.end - downstream,
+                self._tx_locus.end + upstream,
+                self._tx_locus.sense,
+                self._name,
+            )
+        else:
+            return Locus(
+                self._tx_locus.chr,
+                self._tx_locus.start - upstream,
+                self._tx_locus.start + downstream,
+                self._tx_locus.sense,
+                self._name,
+            )
 
 
 # ==================================================================
