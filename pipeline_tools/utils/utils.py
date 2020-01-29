@@ -15,10 +15,10 @@ from collections import defaultdict
 # ==================================================================
 
 
-def open_plus(file_name, mode='r'):
+def open_plus(file_name, mode="r"):
     """Open function that can handle gzip files."""
-    if file_name.split('.')[-1] == 'gz':
-        return gzip.open(file_name, mode + 'b')
+    if file_name.split(".")[-1] == "gz":
+        return gzip.open(file_name, mode + "b")
     return open(file_name, mode)
 
 
@@ -28,7 +28,7 @@ def parse_table(file_name, sep, header=False, excel=False):
         line = infile.readline()
 
         # First figure out if this table came from excel and has \r for line breaks
-        if line.count('\r') > 0:
+        if line.count("\r") > 0:
             excel = True
 
     with open_plus(file_name) as infile:
@@ -39,7 +39,7 @@ def parse_table(file_name, sep, header=False, excel=False):
         if excel:
             lines_raw = infile.readlines()
             for line in lines_raw:
-                line = line.replace('\r', '')
+                line = line.replace("\r", "")
                 line = line.rstrip()
                 table.append(line.split(sep))
         else:
@@ -52,13 +52,13 @@ def parse_table(file_name, sep, header=False, excel=False):
 
 def unparse_table(table, output, sep):
     """Transforms a 'parse_table' output into a text file."""
-    with open_plus(output, 'w') as fh_out:
+    with open_plus(output, "w") as fh_out:
         if not sep:
             for i in table:
-                fh_out.write(str(i) + '\n')
+                fh_out.write(str(i) + "\n")
         else:
             for line in table:
-                fh_out.write(sep.join([str(x) for x in line]) + '\n')
+                fh_out.write(sep.join([str(x) for x in line]) + "\n")
 
 
 def format_folder(folder_name, create=False):
@@ -71,7 +71,7 @@ def format_folder(folder_name, create=False):
         os.listdir(folder_name)
         return folder_name
     except OSError:
-        print('Folder {} does not exist'.format(folder_name))
+        print("Folder {} does not exist".format(folder_name))
         if create:
             os.mkdir(folder_name)
             return folder_name
@@ -111,15 +111,15 @@ def check_output(file_name, wait_time=1, time_out=30):
     if file_exists:
         return True
     else:
-        print('OPERATION TIMED OUT. FILE {} NOT FOUND'.format(file_name))
+        print("OPERATION TIMED OUT. FILE {} NOT FOUND".format(file_name))
         return False
 
 
-def format_bed(bed, output=''):
+def format_bed(bed, output=""):
     """Formats a bed file from UCSC or MACS into a WUSTL gateway compatible bed."""
     new_bed = []
     if isinstance(bed, str):
-        bed = parse_table(bed, '\t')
+        bed = parse_table(bed, "\t")
 
     index_ticker = 1
     for line in bed:
@@ -127,21 +127,21 @@ def format_bed(bed, output=''):
         try:
             strand = line[5]
         except IndexError:
-            strand = '.'
+            strand = "."
         new_line += [index_ticker, strand]
         index_ticker += 1
         new_bed.append(new_line)
 
     if len(output) > 0:
-        unparse_table(new_bed, output, '\t')
+        unparse_table(new_bed, output, "\t")
     else:
         return new_bed
 
 
-def bed_to_gff(bed, output=''):
+def bed_to_gff(bed, output=""):
     """Turns a bed into a gff file."""
     if isinstance(bed, str):
-        bed = parse_table(bed, '\t')
+        bed = parse_table(bed, "\t")
 
     bed = format_bed(bed)
 
@@ -151,28 +151,38 @@ def bed_to_gff(bed, output=''):
     print(bed[0])
 
     if len(bed[0]) == 6:  # this is a full format bed
-        bed_style = 'long'
+        bed_style = "long"
     elif len(bed[0]) == 5:  # this is the medium  length bed with strand
-        bed_style = 'medium'
+        bed_style = "medium"
     elif len(bed[0]) == 3:  # this is the minimum length bed
-        bed_style = 'short'
+        bed_style = "short"
     else:
-        print('this is probably not actually a bed')
+        print("this is probably not actually a bed")
         print(bed[0])
-        print('exiting now because the bed is sad')
+        print("exiting now because the bed is sad")
         sys.exit()
-    print('this bed has {} columns and is a {} bed'.format(len(bed[0]), bed_style))
+    print("this bed has {} columns and is a {} bed".format(len(bed[0]), bed_style))
     for line in bed:
-        if bed_style == 'long':
-            gff_line = [line[0], line[3], '', line[1], line[2], line[4], line[5], '', line[3]]
-        if bed_style == 'medium':
-            gff_line = [line[0], '', '', line[1], line[2], '', line[4], '', '']
-        if bed_style == 'short':
-            gff_line = [line[0], '', '', line[1], line[2], '', '.', '', '']
+        if bed_style == "long":
+            gff_line = [
+                line[0],
+                line[3],
+                "",
+                line[1],
+                line[2],
+                line[4],
+                line[5],
+                "",
+                line[3],
+            ]
+        if bed_style == "medium":
+            gff_line = [line[0], "", "", line[1], line[2], "", line[4], "", ""]
+        if bed_style == "short":
+            gff_line = [line[0], "", "", line[1], line[2], "", ".", "", ""]
         gff.append(gff_line)
 
     if output:
-        unparse_table(gff, output, '\t')
+        unparse_table(gff, output, "\t")
     else:
         return gff
 
@@ -181,6 +191,7 @@ def bed_to_gff(bed, output=''):
 # ===================ANNOTATION FUNCTIONS===========================
 # ==================================================================
 
+
 def make_start_dict(annot_file, gene_list=[]):
     """Makes a dictionary keyed by refseq ID.
 
@@ -188,10 +199,10 @@ def make_start_dict(annot_file, gene_list=[]):
 
     """
     if isinstance(gene_list, str):
-        gene_list = parse_table(gene_list, '\t')
+        gene_list = parse_table(gene_list, "\t")
         gene_list = [line[0] for line in gene_list]
 
-    if annot_file.upper().count('REFSEQ') == 1:
+    if annot_file.upper().count("REFSEQ") == 1:
         refseq_table, refseq_dict = import_refseq(annot_file)
         if not gene_list:
             gene_list = [*refseq_dict]
@@ -199,14 +210,14 @@ def make_start_dict(annot_file, gene_list=[]):
         for gene in gene_list:
             if gene not in refseq_dict:
                 continue
-            start_dict[gene]['sense'] = refseq_table[refseq_dict[gene][0]][3]
-            start_dict[gene]['chr'] = refseq_table[refseq_dict[gene][0]][2]
-            start_dict[gene]['start'] = getTSSs([gene], refseq_table, refseq_dict)
-            if start_dict[gene]['sense'] == '+':
-                start_dict[gene]['end'] = [int(refseq_table[refseq_dict[gene][0]][5])]
+            start_dict[gene]["sense"] = refseq_table[refseq_dict[gene][0]][3]
+            start_dict[gene]["chr"] = refseq_table[refseq_dict[gene][0]][2]
+            start_dict[gene]["start"] = getTSSs([gene], refseq_table, refseq_dict)
+            if start_dict[gene]["sense"] == "+":
+                start_dict[gene]["end"] = [int(refseq_table[refseq_dict[gene][0]][5])]
             else:
-                start_dict[gene]['end'] = [int(refseq_table[refseq_dict[gene][0]][4])]
-            start_dict[gene]['name'] = refseq_table[refseq_dict[gene][0]][12]
+                start_dict[gene]["end"] = [int(refseq_table[refseq_dict[gene][0]][4])]
+            start_dict[gene]["name"] = refseq_table[refseq_dict[gene][0]][12]
     return start_dict
 
 
@@ -218,9 +229,9 @@ def getTSSs(gene_list, refseq_table, refseq_dict):
         refseq = refseq_from_key(gene_list, refseq_dict, refseq_table)
     TSS = []
     for line in refseq:
-        if line[3] == '+':
+        if line[3] == "+":
             TSS.append(line[4])
-        if line[3] == '-':
+        if line[3] == "-":
             TSS.append(line[5])
     TSS = list(map(int, TSS))
 
@@ -229,7 +240,7 @@ def getTSSs(gene_list, refseq_table, refseq_dict):
 
 def import_refseq(refseq_file, return_multiples=False):
     """Opens up a refseq file downloaded by UCSC."""
-    refseq_table = parse_table(refseq_file, '\t')
+    refseq_table = parse_table(refseq_file, "\t")
     refseq_dict = defaultdict(list)
     ticker = 1
     for line in refseq_table[1:]:
@@ -268,11 +279,11 @@ def make_genes(annot_file, gene_list=[], as_dict=False):
     else:
         genes = []
     if isinstance(gene_list, str):
-        print('importing gene list from {}'.format(gene_list))
-        gene_list = parse_table(gene_list, '\t')
+        print("importing gene list from {}".format(gene_list))
+        gene_list = parse_table(gene_list, "\t")
         gene_list = [line[0] for line in gene_list]
 
-    if annot_file.upper().count('REFSEQ') == 1:
+    if annot_file.upper().count("REFSEQ") == 1:
         ref_table, ref_dict = import_refseq(annot_file)
 
         if not gene_list:
@@ -284,8 +295,8 @@ def make_genes(annot_file, gene_list=[], as_dict=False):
 
             gene_index = ref_dict[refseq_id][0]
             gene_line = ref_table[int(gene_index)]
-            exon_starts = list(map(int, gene_line[9].split(',')[:-1]))
-            exon_ends = list(map(int, gene_line[10].split(',')[:-1]))
+            exon_starts = list(map(int, gene_line[9].split(",")[:-1]))
+            exon_ends = list(map(int, gene_line[10].split(",")[:-1]))
 
             gene = Gene(
                 refseq_id,
@@ -306,13 +317,15 @@ def make_genes(annot_file, gene_list=[], as_dict=False):
     return genes
 
 
-def make_transcript_collection(annot_file, up_search, down_search, window=500, gene_list=[]):
+def make_transcript_collection(
+    annot_file, up_search, down_search, window=500, gene_list=[]
+):
     """Makes a LocusCollection w/ each transcript as a locus.
 
     Takes in either a refseqfile or an ensembl GFF.
 
     """
-    if annot_file.upper().count('REFSEQ') == 1:
+    if annot_file.upper().count("REFSEQ") == 1:
         refseq_table, refseq_dict = import_refseq(annot_file)
         locus_list = []
         ticker = 0
@@ -321,7 +334,7 @@ def make_transcript_collection(annot_file, up_search, down_search, window=500, g
 
         for line in refseq_table[1:]:
             if line[1] in gene_list:
-                if line[3] == '-':
+                if line[3] == "-":
                     locus = Locus(
                         line[2],
                         int(line[4]) - down_search,
@@ -348,10 +361,10 @@ def make_transcript_collection(annot_file, up_search, down_search, window=500, g
 
 def import_bound_region(bound_region_file, name):
     """Imports bound regions in either bed format or in error model format."""
-    bound = parse_table(bound_region_file, '\t')
+    bound = parse_table(bound_region_file, "\t")
     loci_list = []
     ticker = 1
-    bed = bool(bound_region_file.split('.')[-1] in ['bed', 'narrowPeak'])
+    bed = bool(bound_region_file.split(".")[-1] in ["bed", "narrowPeak"])
     if bed:
         for line in bound:
             if len(line) < 3:
@@ -363,8 +376,8 @@ def import_bound_region(bound_region_file, name):
                     line[0],
                     int(line[1]),
                     int(line[2]),
-                    '.',
-                    ID=name + '_' + str(ticker),
+                    ".",
+                    ID=name + "_" + str(ticker),
                 )
             )
             ticker = ticker + 1
@@ -374,11 +387,11 @@ def import_bound_region(bound_region_file, name):
                 print(ticker)
             loci_list.append(
                 Locus(
-                    'chr' + line[0],
+                    "chr" + line[0],
                     int(line[1]),
                     int(line[2]),
-                    '.',
-                    ID=name + '_' + str(ticker),
+                    ".",
+                    ID=name + "_" + str(ticker),
                 )
             )
             ticker = ticker + 1
@@ -392,12 +405,14 @@ def import_bound_region(bound_region_file, name):
 
 # Locus and LocusCollection instances courtesy of Graham Ruby
 
+
 class Locus(object):
     """Standard locus class for tracking genomic loci."""
-    __chr_dict = dict()
-    __sense_dict = {'+': '+', '-': '-', '.': '.'}
 
-    def __init__(self, chr, start, end, sense, ID='', score=0):
+    __chr_dict = dict()
+    __sense_dict = {"+": "+", "-": "-", ".": "."}
+
+    def __init__(self, chr, start, end, sense, ID="", score=0):
         """Initialize attributes."""
         coords = sorted([int(start), int(end)])
         # This method for assigning chromosome should help avoid storage of redundant strings.
@@ -416,9 +431,9 @@ class Locus(object):
 
     def get_antisense_locus(self):
         """Get antisense locus."""
-        if self.sense == '.':
+        if self.sense == ".":
             return self
-        switch = {'+': '-', '-': '+'}
+        switch = {"+": "-", "-": "+"}
         return Locus(self.chr, self.start, self.end, switch[self.sense])
 
     def coords(self):
@@ -433,9 +448,11 @@ class Locus(object):
         """
         if self.chr != other_locus.chr:
             return False
-        if not(self.sense == '.' or
-               other_locus.sense == '.' or
-               self.sense == other_locus.sense):
+        if not (
+            self.sense == "."
+            or other_locus.sense == "."
+            or self.sense == other_locus.sense
+        ):
             return False
         if self.start > other_locus.end or other_locus.start > self.end:
             return False
@@ -449,9 +466,11 @@ class Locus(object):
         """
         if self.chr != other_locus.chr:
             return False
-        if not(self.sense == '.' or
-               other_locus.sense == '.' or
-               self.sense == other_locus.sense):
+        if not (
+            self.sense == "."
+            or other_locus.sense == "."
+            or self.sense == other_locus.sense
+        ):
             return False
         if self.start > other_locus.start or other_locus.end > self.end:
             return False
@@ -489,11 +508,12 @@ class Locus(object):
 
     def __str__(self):
         """Locus string representation."""
-        return self.chr + '(' + self.sense + '):' + '-'.join(map(str, self.coords()))
+        return self.chr + "(" + self.sense + "):" + "-".join(map(str, self.coords()))
 
 
 class LocusCollection(object):
     """A collection of locus objects used for querying large sets of loci."""
+
     def __init__(self, loci, window_size=50):
         """Initialize attributes."""
         # Top-level keys are chr, then strand, no space
@@ -507,8 +527,8 @@ class LocusCollection(object):
         """Add locus to the collection."""
         if lcs not in self.__loci:
             self.__loci[lcs] = None
-            if lcs.sense == '.':
-                chr_key_list = [lcs.chr + '+', lcs.chr + '-']
+            if lcs.sense == ".":
+                chr_key_list = [lcs.chr + "+", lcs.chr + "-"]
             else:
                 chr_key_list = [lcs.chr + lcs.sense]
             for chr_key in chr_key_list:
@@ -542,8 +562,8 @@ class LocusCollection(object):
         if old not in self.__loci:
             raise ValueError("Requested locus isn't in collection.")
         del self.__loci[old]
-        if old.sense == '.':
-            sense_list = ['+', '-']
+        if old.sense == ".":
+            sense_list = ["+", "-"]
         else:
             sense_list = [old.sense]
         for k in self.__get_key_range(old):
@@ -557,16 +577,25 @@ class LocusCollection(object):
     def __subset_helper(self, locus, sense):
         """"""
         sense = sense.lower()
-        if ['sense', 'antisense', 'both'].count(sense) != 1:
+        if ["sense", "antisense", "both"].count(sense) != 1:
             raise ValueError("Sense command invalid: '{}'.".format(sense))
         matches = dict()
-        senses = ['+', '-']
-        if locus.sense == '.' or sense == 'both':
-            def lamb(s): return True
-        elif sense == 'sense':
-            def lamb(s): return bool(s == locus.sense)
-        elif sense == 'antisense':
-            def lamb(s): return bool(s != locus.sense)
+        senses = ["+", "-"]
+        if locus.sense == "." or sense == "both":
+
+            def lamb(s):
+                return True
+
+        elif sense == "sense":
+
+            def lamb(s):
+                return bool(s == locus.sense)
+
+        elif sense == "antisense":
+
+            def lamb(s):
+                return bool(s != locus.sense)
+
         else:
             raise ValueError("Sense value was inappropriate: '{}'.".format(sense))
 
@@ -580,7 +609,7 @@ class LocusCollection(object):
 
         return matches.keys()
 
-    def get_overlap(self, locus, sense='sense'):
+    def get_overlap(self, locus, sense="sense"):
         """Returns all members of the collection that overlap the locus.
 
         :param sense: can be 'sense' (default), 'antisense', or 'both'.
@@ -589,15 +618,15 @@ class LocusCollection(object):
         matches = self.__subset_helper(locus, sense)
         # Now, get rid of the ones that don't really overlap
         real_matches = dict()
-        if sense == 'sense' or sense == 'both':
+        if sense == "sense" or sense == "both":
             for i in filter(lambda lcs: lcs.overlaps(locus), matches):
                 real_matches[i] = None
-        if sense == 'antisense' or sense == 'both':
+        if sense == "antisense" or sense == "both":
             for i in filter(lambda lcs: lcs.overlaps_antisense(locus), matches):
                 real_matches[i] = None
         return real_matches.keys()
 
-    def stitch_collection(self, stitch_window=1, sense='both'):
+    def stitch_collection(self, stitch_window=1, sense="both"):
         """Reduces the collection by stitching together overlapping loci.
 
         Returns a new collection. Initializing stichWindow to 1 helps collect directly adjacent
@@ -634,12 +663,12 @@ class LocusCollection(object):
                         overlap_coords += overlapping_locus.coords()
                         old_collection.remove(overlapping_locus)
                     overlap_coords = [int(x) for x in overlap_coords]
-                    if sense == 'both':
+                    if sense == "both":
                         locus = Locus(
                             locus.chr,
                             min(overlap_coords),
                             max(overlap_coords),
-                            '.',
+                            ".",
                             locus.id,
                         )
                     else:
@@ -657,9 +686,9 @@ class LocusCollection(object):
                             locus.end + stitch_window,
                             locus.sense,
                         ),
-                        sense
+                        sense,
                     )
-                locus.id = '{}_{}_lociStitched'.format(stitch_ticker, locus.id)
+                locus.id = "{}_{}_lociStitched".format(stitch_ticker, locus.id)
 
                 stitched_collection.append(locus)
 
@@ -669,16 +698,19 @@ class LocusCollection(object):
         return stitched_collection
 
 
-#==================================================================
-#========================GENE INSTANCE=============================
-#==================================================================
+# ==================================================================
+# ========================GENE INSTANCE=============================
+# ==================================================================
 # This is a gene object.  Unlike the previous gene_object, this actually represents
 # a gene, as opposed to a whole set of genes, which was a poor design in the first place.
 
+
 class Gene:
     """Gene object."""
-    def __init__(self, name, chr, sense, tx_coords, cd_coords, ex_starts, ex_ends,
-                 common_name=''):
+
+    def __init__(
+        self, name, chr, sense, tx_coords, cd_coords, ex_starts, ex_ends, common_name=""
+    ):
         """Initialize attributes.
 
         :param str name: name of the gene
@@ -691,7 +723,7 @@ class Gene:
         self._name = name
         self._common_name = common_name
         self._tx_locus = Locus(chr, min(tx_coords), max(tx_coords), sense, self._name)
-        if cd_coords == None:
+        if cd_coords is None:
             self._cd_locus = None
         else:
             self._cd_locus = Locus(chr, min(cd_coords), max(cd_coords), sense)
@@ -703,8 +735,6 @@ class Gene:
         self._cd_exons = []
         self._introns = []
 
-        cd_exon_count = 0
-
         for n in range(len(ex_starts)):
             first_locus = Locus(chr, ex_starts[n], ex_starts[n], sense)
             second_locus = Locus(chr, ex_ends[n], ex_ends[n], sense)
@@ -715,7 +745,8 @@ class Gene:
             self._tx_exons.append(tx_exon)
 
             # Add Coding Exons
-            # Need to make sure that the current exon is actually in the coding region of the gene first
+            # Need to make sure that the current exon is actually in the
+            # coding region of the gene first
             if self.is_coding() and tx_exon.overlaps(self._cd_locus):
                 if not first_locus.overlaps(self._cd_locus):
                     first_coord = min(cd_coords)
@@ -732,23 +763,32 @@ class Gene:
 
             # Add Introns
             if n < len(ex_starts) - 1:
-                self._introns.append(Locus(chr, ex_ends[n] + 1, ex_starts[n + 1] - 1, sense))
+                self._introns.append(
+                    Locus(chr, ex_ends[n] + 1, ex_starts[n + 1] - 1, sense)
+                )
 
         if self.is_coding():
-            if sense == '+':
+            if sense == "+":
                 self._fp_utr = Locus(chr, min(tx_coords), min(cd_coords) - 1, sense)
                 self._tp_utr = Locus(chr, max(cd_coords) + 1, max(tx_coords), sense)
-            elif sense == '-':
+            elif sense == "-":
                 self._fp_utr = Locus(chr, max(cd_coords) + 1, max(tx_coords), sense)
                 self._tp_utr = Locus(chr, min(tx_coords), min(cd_coords) - 1, sense)
         else:
             self._fp_utr = None
             self._tp_utr = None
 
-    def common_name(self): return self._common_name
-    def name(self): return self._name
-    def chr(self): return self._tx_locus.chr
-    def sense(self): return self._tx_locus.sense
+    def common_name(self):
+        return self._common_name
+
+    def name(self):
+        return self._name
+
+    def chr(self):
+        return self._tx_locus.chr
+
+    def sense(self):
+        return self._tx_locus.sense
 
     def tx_locus(self):
         """locus of full transcript."""
@@ -780,10 +820,10 @@ class Gene:
 
     def is_coding(self):
         """Boolean if this gene is protein-coding."""
-        return not(self._cd_locus.start == 0 and self._cd_locus.end == 0)
+        return not (self._cd_locus.start == 0 and self._cd_locus.end == 0)
 
     def tss(self, upstream=0, downstream=0):
-        if self._tx_locus.sense == '-':
+        if self._tx_locus.sense == "-":
             return Locus(
                 self._tx_locus.chr,
                 self._tx_locus.end - downstream,
@@ -805,13 +845,14 @@ class Gene:
 # ========================LOCUS FUNCTIONS===========================
 # ==================================================================
 
+
 def make_search_locus(locus, up_search, down_search):
     """Takes a locus and expands it by a fixed upstream/downstream amount.
 
     Spits out the new larger locus.
 
     """
-    if locus.sense == '-':
+    if locus.sense == "-":
         search_locus = Locus(
             locus.chr,
             locus.start - down_search,
@@ -832,27 +873,31 @@ def make_search_locus(locus, up_search, down_search):
 
 def make_tss_locus(gene, start_dict, upstream, downstream):
     """Given a start_dict, make a locus for any gene's TSS w/ upstream and downstream windows."""
-    start = start_dict[gene]['start'][0]
-    if start_dict[gene]['sense'] == '-':
-        return Locus(start_dict[gene]['chr'], start - downstream, start + upstream, '-', gene)
+    start = start_dict[gene]["start"][0]
+    if start_dict[gene]["sense"] == "-":
+        return Locus(
+            start_dict[gene]["chr"], start - downstream, start + upstream, "-", gene
+        )
     else:
-        return Locus(start_dict[gene]['chr'], start - upstream, start + downstream, '+', gene)
+        return Locus(
+            start_dict[gene]["chr"], start - upstream, start + downstream, "+", gene
+        )
 
 
 def gff_to_locus_collection(gff, window=500):
     """Open a gff file and turn it into a LocusCollection instance."""
     loci_list = []
     if isinstance(gff, str):
-        gff = parse_table(gff, '\t')
+        gff = parse_table(gff, "\t")
 
     for line in gff:
-        #USE line[1] as the locus ID.  If that is empty use line[8]
+        # USE line[1] as the locus ID.  If that is empty use line[8]
         if len(line[1]):
             name = line[1]
         elif len(line[8]):
             name = line[8]
         else:
-            name = '{}:{}:{}-{}'.format(line[0],line[6], line[3], line[4])
+            name = "{}:{}:{}-{}".format(line[0], line[6], line[3], line[4])
 
         loci_list.append(Locus(line[0], line[3], line[4], line[6], name))
 
@@ -863,6 +908,7 @@ def gff_to_locus_collection(gff, window=500):
 # ==========================BAM CLASS===============================
 # ==================================================================
 
+
 def convert_bitwise_flag(flag):
     """Get strand from the flag."""
     if flag & 16:
@@ -872,12 +918,13 @@ def convert_bitwise_flag(flag):
 
 class Bam(object):
     """A class for a sorted and indexed bam file that allows easy analysis of reads."""
+
     def __init__(self, bam_file):
         """Initialize attributes."""
         self._bam = bam_file
 
         # Get the number of reads use idxstats instead of flagstat
-        command = '{} idxstats {}'.format('samtools', self._bam)
+        command = "{} idxstats {}".format("samtools", self._bam)
 
         stats = subprocess.Popen(
             command,
@@ -890,15 +937,16 @@ class Bam(object):
         stats.stdout.close()
 
         self._mapped_reads = sum(
-            [int(line.decode('utf-8').rstrip().split('\t')[-2]) for line in stat_lines]
+            [int(line.decode("utf-8").rstrip().split("\t")[-2]) for line in stat_lines]
         )
-        self._total_reads = (
-            self._mapped_reads +
-            int(stat_lines[-1].decode('utf-8').rstrip().split('\t')[-1])
+        self._total_reads = self._mapped_reads + int(
+            stat_lines[-1].decode("utf-8").rstrip().split("\t")[-1]
         )
 
         # Now get the readlength #check the first 1000 reads
-        view_command = '{} view {} chr1:90000000-100000000'.format('samtools', self._bam)
+        view_command = "{} view {} chr1:90000000-100000000".format(
+            "samtools", self._bam
+        )
         read_stats = subprocess.Popen(
             view_command,
             stdin=subprocess.PIPE,
@@ -910,7 +958,9 @@ class Bam(object):
         read_stats.stdout.close()
 
         if not read_stat_lines:  # try chrom names w/o the chr
-            view_command = '{} view {} 1:90000000-100000000'.format('samtools', self._bam)
+            view_command = "{} view {} 1:90000000-100000000".format(
+                "samtools", self._bam
+            )
             read_stats = subprocess.Popen(
                 view_command,
                 stdin=subprocess.PIPE,
@@ -921,9 +971,13 @@ class Bam(object):
             read_stat_lines = read_stats.stdout.readlines()
             read_stats.stdout.close()
 
-        self._read_lengths = uniquify([
-            len(line.decode('utf-8').split('\t')[9]) for line in read_stat_lines if len(line) > 0
-        ])
+        self._read_lengths = uniquify(
+            [
+                len(line.decode("utf-8").split("\t")[9])
+                for line in read_stat_lines
+                if len(line) > 0
+            ]
+        )
 
     def path(self):
         """Return bam file path."""
@@ -933,28 +987,21 @@ class Bam(object):
         """Get read lengths."""
         return self._read_lengths
 
-    def liquidate_locus(self, locus, n=1, sense='.', extension=0, mmr=False):
+    def liquidate_locus(self, locus, n=1, sense=".", extension=0, mmr=False):
         """Use bamliquidator on a locus."""
-        bamliquidator_cmd = (
-            'bamliquidator {} {} {} {} {} {} {}'.format(
-                self._bam,
-                locus.chr,
-                str(locus.start),
-                str(locus.end),
-                sense,
-                n,
-                extension,
-            )
+        bamliquidator_cmd = "bamliquidator {} {} {} {} {} {} {}".format(
+            self._bam, locus.chr, str(locus.start), str(locus.end), sense, n, extension,
         )
         bamliquidator_out = subprocess.Popen(
-            bamliquidator_cmd,
-            stdout=subprocess.PIPE,
-            shell=True,
+            bamliquidator_cmd, stdout=subprocess.PIPE, shell=True,
         )
-        score = [int(x.decode('utf-8').rstrip()) for x in bamliquidator_out.stdout.readlines()]
+        score = [
+            int(x.decode("utf-8").rstrip())
+            for x in bamliquidator_out.stdout.readlines()
+        ]
         if mmr:
             mmr_count = float(self._mapped_reads) / 1000000
-            score = [round(x/mmr_count, 4) for x in score]
+            score = [round(x / mmr_count, 4) for x in score]
 
         return score
 
@@ -967,6 +1014,7 @@ class Bam(object):
 # by Peter Bengtsson
 # Used under a creative commons license
 # sourced from  here: http://www.peterbe.com/plog/uniqifiers-benchmark
+
 
 def uniquify(seq, idfun=None):
     """Makes a list unique.
@@ -992,17 +1040,18 @@ def uniquify(seq, idfun=None):
 # =======================SEQUENCE FUNCTIONS=========================
 # ==================================================================
 
+
 def fetch_seq(directory, chrom, start, end, UCSC=False, line_breaks=True, header=True):
     """Fetches a sequence from a genome directory.
 
     The directory must contain individual chrom fasta files.
 
     """
-    file_name = os.path.join(directory, '{}{}'.format(chrom, '.fa'))
+    file_name = os.path.join(directory, "{}{}".format(chrom, ".fa"))
     header_offset = 0
     n_start = 0
     n_end = 0
-    with open_plus(file_name, 'r') as infile:
+    with open_plus(file_name, "r") as infile:
         if header:
             infile.seek(0)
             header_offset = len(infile.readline())
@@ -1013,8 +1062,8 @@ def fetch_seq(directory, chrom, start, end, UCSC=False, line_breaks=True, header
             infile.seek((start + n_start + header_offset))
         else:
             infile.seek((start - 1 + n_start + header_offset))
-        span = ((end + n_end - 1) - (start + n_start - 1))
+        span = (end + n_end - 1) - (start + n_start - 1)
         read = infile.read(span)
         if line_breaks:
-            read = read.replace('\n', '')
+            read = read.replace("\n", "")
         return read
