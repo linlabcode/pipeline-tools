@@ -904,6 +904,26 @@ def gff_to_locus_collection(gff, window=500):
     return LocusCollection(loci_list, window)
 
 
+def locus_collection_to_gff(locus_collection):
+    loci_list = locus_collection.get_loci()
+    gff = []
+    for locus in loci_list:
+        new_line = [
+            locus.chr,
+            locus.id,
+            "",
+            locus.start,
+            locus.end,
+            "",
+            locus.sense,
+            "",
+            locus.id,
+        ]
+        gff.append(new_line)
+
+    return gff
+
+
 # ==================================================================
 # ==========================BAM CLASS===============================
 # ==================================================================
@@ -1034,6 +1054,51 @@ def uniquify(seq, idfun=None):
         seen[marker] = 1
         result.append(item)
     return result
+
+
+# 082009
+# taken from http://code.activestate.com/recipes/491268/
+
+
+def order(x, none_is_last=True, decreasing=False):
+    """
+    Returns the ordering of the elements of x. The list
+    [ x[j] for j in order(x) ] is a sorted version of x.
+
+    Missing values in x are indicated by None. If none_is_last is true,
+    then missing values are ordered to be at the end.
+    Otherwise, they are ordered at the beginning.
+
+    """
+    omit_none = False
+    if none_is_last is None:
+        none_is_last = True
+        omit_none = True
+
+    n = len(x)
+    ix = range(n)
+    if None not in x:
+        ix.sort(reverse=decreasing, key=lambda j: x[j])
+    else:
+        # Handle None values properly.
+        def key(i, x=x):
+            elem = x[i]
+            # Valid values are True or False only.
+            if decreasing == none_is_last:
+                return not (elem is None), elem
+            else:
+                return elem is None, elem
+
+        ix = range(n)
+        ix.sort(key=key, reverse=decreasing)
+
+    if omit_none:
+        n = len(x)
+        for i in range(n - 1, -1, -1):
+            if x[ix[i]] is None:
+                n -= 1
+        return ix[:n]
+    return ix
 
 
 # ==================================================================

@@ -32,6 +32,7 @@ setup(
             "enhancerPromoter=pipeline_tools.tools.enhancerPromoter:main",
             "out_degree_delta=pipeline_tools.tools.out_degree_delta:main",
             "bamPlot_turbo=pipeline_tools.tools.bamPlot_turbo:main",
+            "ROSE2_geneMapper=pipeline_tools.tools.ROSE2_geneMapper:main",
         ]
     },
     package_data={"pipeline_tools": ["annotation/*"]},
@@ -51,5 +52,6 @@ setup(
         "enhancerPromoter",
         "out_degree_delta",
         "bamPlot_turbo",
+        "ROSE2_geneMapper",
     ],
 )
