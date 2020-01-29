@@ -31,9 +31,10 @@ THE SOFTWARE.
 #=======================DEPENDENCIES=======================================
 #==========================================================================
 import argparse
+import os
+import shutil
 import sys
 import subprocess
-import os
 
 from pipeline_tools.definitions import ROOT_DIR
 from pipeline_tools.utils import utils
@@ -771,8 +772,8 @@ def main():
             if utils.check_output(out_file, 1, 10):
                 # This is super dangerous (!). Add some sanity checks.
                 assert(" " not in temp_folder)
-                assert(temp_folder is not "/")
-                os.rmdir(temp_folder)
+                assert(temp_folder != "/")
+                shutil.rmtree(temp_folder)
                 print('Removing temp folder: {}'.format(temp_folder))
             else:
                 print('ERROR: NO OUTPUT FILE {} DETECTED'.format(out_file))
