@@ -626,6 +626,23 @@ class LocusCollection(object):
                 real_matches[i] = None
         return real_matches.keys()
 
+    def get_containers(self, locus, sense='sense'):
+        """Return all members of the collection that contain the locus.
+
+        :param sense: can be 'sense' (default), 'antisense', or 'both'.
+
+        """
+        matches = self.__subset_helper(locus, sense)
+        # now, get rid of the ones that don't really overlap
+        real_matches = dict()
+        if sense == 'sense' or sense == 'both':
+            for i in filter(lambda lcs: lcs.contains(locus), matches):
+                real_matches[i] = None
+        if sense == 'antisense' or sense == 'both':
+            for i in filter(lambda lcs: lcs.contains_antisense(locus), matches):
+                real_matches[i] = None
+        return real_matches.keys()
+
     def stitch_collection(self, stitch_window=1, sense="both"):
         """Reduces the collection by stitching together overlapping loci.
 
@@ -1076,7 +1093,7 @@ def order(x, none_is_last=True, decreasing=False):
         omit_none = True
 
     n = len(x)
-    ix = range(n)
+    ix = list(range(n))
     if None not in x:
         ix.sort(reverse=decreasing, key=lambda j: x[j])
     else:
@@ -1089,7 +1106,7 @@ def order(x, none_is_last=True, decreasing=False):
             else:
                 return elem is None, elem
 
-        ix = range(n)
+        ix = list(range(n))
         ix.sort(key=key, reverse=decreasing)
 
     if omit_none:

@@ -26,6 +26,8 @@ setup(
     scripts=[
         "pipeline_tools/scripts/enhancerPromoter_waterfall.R",
         "pipeline_tools/scripts/bamPlot_turbo.R",
+        "pipeline_tools/scripts/ROSE2_callSuper.R",
+        "pipeline_tools/scripts/ROSE2_stitchOpt.R",
     ],
     entry_points={
         "console_scripts": [
@@ -33,6 +35,7 @@ setup(
             "out_degree_delta=pipeline_tools.tools.out_degree_delta:main",
             "bamPlot_turbo=pipeline_tools.tools.bamPlot_turbo:main",
             "ROSE2_geneMapper=pipeline_tools.tools.ROSE2_geneMapper:main",
+            "ROSE2=pipeline_tools.tools.ROSE2_main:main",
         ]
     },
     package_data={"pipeline_tools": ["annotation/*"]},
@@ -53,5 +56,6 @@ setup(
         "out_degree_delta",
         "bamPlot_turbo",
         "ROSE2_geneMapper",
+        "ROSE2",
     ],
 )
