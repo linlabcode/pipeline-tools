@@ -36,6 +36,7 @@ setup(
             "bamPlot_turbo=pipeline_tools.tools.bamPlot_turbo:main",
             "ROSE2_geneMapper=pipeline_tools.tools.ROSE2_geneMapper:main",
             "ROSE2=pipeline_tools.tools.ROSE2_main:main",
+            "ROSE2_META=pipeline_tools.tools.ROSE2_META:main",
         ]
     },
     package_data={"pipeline_tools": ["annotation/*"]},
@@ -57,5 +58,6 @@ setup(
         "bamPlot_turbo",
         "ROSE2_geneMapper",
         "ROSE2",
+        "ROSE2_META",
     ],
 )

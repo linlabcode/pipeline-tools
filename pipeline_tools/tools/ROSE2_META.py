@@ -8,12 +8,52 @@ AND RANK ENHANCERS BY READ DENSITY TO DISCOVER SUPER-ENHANCERS
 import argparse
 import os
 import sys
-import time
 from shutil import copyfile
 
+import numpy
 
 from pipeline_tools.definitions import ROOT_DIR
 from pipeline_tools.utils import rose2_utils, utils
+
+# ==================================================================
+# ====================COLLAPSING REGION MAP=========================
+# ==================================================================
+
+
+def collapse_region_map(region_map_file, name="", control_bams=False):
+    """Take a region_map file and collapse signal into a single column.
+
+    Also fix any stupid start/stop sorting issues. Need to take into account whether or not
+    controls were used.
+
+    """
+    region_map = utils.parse_table(region_map_file, "\t")
+
+    for n, line in enumerate(region_map):
+        if n == 0:
+            # new header
+            if len(name) == 0:
+                name = "MERGED_SIGNAL"
+            region_map[n] = line[0:6] + [name]
+
+        else:
+            new_line = list(line[0:6])
+            if control_bams:
+                signal_line = [float(x) for x in line[6:]]
+                rankby_indexes = range(0, len(signal_line) // 2, 1)
+                control_indexes = range(len(signal_line) // 2, len(signal_line), 1)
+                meta_vector = []
+                for i, j in zip(rankby_indexes, control_indexes):
+                    # min signal is 0
+                    meta_vector.append(max(0, signal_line[i] - signal_line[j]))
+                meta_signal = numpy.mean(meta_vector)
+            else:
+                meta_signal = numpy.mean([float(x) for x in line[6:]])
+            region_map[n] = new_line + [meta_signal]
+
+    output_file = region_map_file.replace("REGION", "META")
+    utils.unparse_table(region_map, output_file, "\t")
+    return output_file
 
 
 # ==================================================================
@@ -22,6 +62,7 @@ from pipeline_tools.utils import rose2_utils, utils
 def main():
     """Main run call."""
     debug = False
+
     parser = argparse.ArgumentParser()
     # required flags
     parser.add_argument(
@@ -29,14 +70,18 @@ def main():
         "--i",
         dest="input",
         required=True,
-        help="Enter a .gff or .bed file of binding sites used to make enhancers",
+        help=(
+            "Enter a comma separated list of .gff or .bed file of binding sites used to make "
+            "enhancers"
+        ),
     )
     parser.add_argument(
         "-r",
         "--rankby",
         dest="rankby",
+        nargs=1,
         required=True,
-        help="bam_file to rank enhancer by",
+        help="Enter a comma separated list of bams to rank by",
     )
     parser.add_argument(
         "-o", "--out", dest="out", required=True, help="Enter an output folder"
@@ -51,18 +96,21 @@ def main():
 
     # optional flags
     parser.add_argument(
-        "-b",
-        "--bams",
-        dest="bams",
+        "-n",
+        "--name",
+        dest="name",
         required=False,
-        help="Enter a comma separated list of additional bam files to map to",
+        help="Provide a name for the analysis otherwise ROSE will guess",
     )
     parser.add_argument(
         "-c",
         "--control",
         dest="control",
         required=False,
-        help="bam_file to rank enhancer by",
+        help=(
+            "Enter a comma separated list of control bams. Can either provide a single control "
+            "bam for all rankby bams, or provide a control bam for each individual bam"
+        ),
     )
     parser.add_argument(
         "-s",
@@ -96,44 +144,67 @@ def main():
     out_folder = utils.format_folder(args.out, True)
 
     # figuring out folder schema
-    gff_folder = utils.format_folder(os.path.join(out_folder + "gff"), True)
-    mapped_folder = utils.format_folder(os.path.join(out_folder, "mapped_gff"), True)
+    gff_folder = utils.format_folder(os.path.join(out_folder, "gff"), True)
+    mapped_folder = utils.format_folder(os.path.join(out_folder, "mappedGFF"), True)
 
-    # GETTING INPUT FILE
-    if args.input.split(".")[-1] == "bed":
-        # CONVERTING A BED TO GFF
-        input_gff_name = args.input.split("/")[-1][0:-4]
-        input_gff_file = os.path.join(gff_folder, "{}.gff".format(input_gff_name))
-        utils.bed_to_gff(args.input, input_gff_file)
-    elif args.input.split(".")[-1] == "gff":
-        # COPY THE INPUT GFF TO THE GFF FOLDER
-        input_gff_file = args.input
-        copyfile(
-            input_gff_file, os.path.join(gff_folder, os.path.basename(input_gff_file))
-        )
+    # GETTING INPUT FILE(s)
+    input_list = [
+        input_file for input_file in args.input.split(",") if len(input_file) > 1
+    ]
 
-    else:
-        print(
-            "WARNING: INPUT FILE DOES NOT END IN .gff or .bed. ASSUMING .gff FILE FORMAT"
-        )
-        # COPY THE INPUT GFF TO THE GFF FOLDER
-        input_gff_file = args.input
-        copyfile(
-            input_gff_file, os.path.join(gff_folder, os.path.basename(input_gff_file))
-        )
+    # converting all input files into GFFs and moving into the GFF folder
+    input_gf_list = []
+    for input_file in input_list:
+        # GETTING INPUT FILE
+        if args.input.split(".")[-1] == "bed":
+            # CONVERTING A BED TO GFF
+            input_gff_name = os.path.basename(args.input)[0:-4]
+            input_gff_file = os.path.join(gff_folder, "{}.gff".format(input_gff_name))
+            utils.bed_to_gff(args.input, input_gff_file)
+        elif args.input.split(".")[-1] == "gff":
+            # COPY THE INPUT GFF TO THE GFF FOLDER
+            input_gff_file = args.input
+            copyfile(
+                input_gff_file,
+                os.path.join(gff_folder, os.path.basename(input_gff_file)),
+            )
+        else:
+            print(
+                "WARNING: INPUT FILE DOES NOT END IN .gff or .bed. ASSUMING .gff FILE FORMAT"
+            )
+            # COPY THE INPUT GFF TO THE GFF FOLDER
+            input_gff_file = args.input
+            copyfile(
+                input_gff_file,
+                os.path.join(gff_folder, os.path.basename(input_gff_file)),
+            )
+
+        input_gf_list.append(input_gff_file)
 
     # GETTING THE LIST OF bam_fileS TO PROCESS
+    # either same number of bams for rankby and control
+    # or only 1 control #or none!
+    # bamlist should be all rankby bams followed by control bams
+
+    bam_file_list = []
     if args.control:
-        bam_file_list = [args.rankby, args.control]
+        control_bam_list = [bam for bam in args.control.split(",") if len(bam) > 0]
+        rankby_bam_list = [bam for bam in args.rankby.split(",") if len(bam) > 0]
 
+        if len(control_bam_list) == len(rankby_bam_list):
+            # case where an equal number of backgrounds are given
+            bam_file_list = rankby_bam_list + control_bam_list
+        elif len(control_bam_list) == 1:
+            # case where a universal background is applied
+            bam_file_list = rankby_bam_list + control_bam_list * len(rankby_bam_list)
+        else:
+            print(
+                "ERROR: EITHER PROVIDE A SINGLE CONTROL BAM FOR ALL SAMPLES, OR ONE CONTROL BAM"
+                " FOR EACH SAMPLE"
+            )
+            sys.exit()
     else:
-        bam_file_list = [args.rankby]
-
-    if args.bams:
-        bam_file_list += args.bams.split(",")
-        # bam_file_list = utils.uniquify(bam_file_list) # makes sad when you have the same control
-        # bam over and over again
-    # optional args
+        bam_file_list = [bam for bam in args.rankby.split(",") if len(bam) > 0]
 
     # Stitch parameter
     if args.stitch == "":
@@ -148,15 +219,75 @@ def main():
     else:
         remove_tss = False
 
-    # GETTING THE BOUND REGION FILE USED TO DEFINE ENHANCERS
-    print("USING {} AS THE INPUT GFF".format(input_gff_file))
-    input_name = os.path.basename(input_gff_file).split(".")[0]
-
     # GETTING THE GENOME
-    genome = args.genome
+    genome = args.genome.upper()
     print("USING {} AS THE GENOME".format(genome))
 
-    annot_file = rose2_utils.genome_dict[genome.upper()]
+    # GETTING THE CORRECT ANNOT FILE
+    try:
+        annot_file = rose2_utils.genome_dict[genome]
+    except KeyError:
+        print("ERROR: UNSUPPORTED GENOMES TYPE {}".format(genome))
+        sys.exit()
+
+    # FINDING THE ANALYSIS NAME
+    if args.name:
+        input_name = args.name
+    else:
+        input_name = os.path.basename(input_gf_list[0]).split(".")[0]
+    print("USING {} AS THE ANALYSIS NAME".format(input_name))
+
+    print("FORMATTING INPUT REGIONS")
+    # MAKING THE RAW INPUT FILE FROM THE INPUT GFFs
+    # use a simpler unique region naming system
+    if len(input_gf_list) == 1:
+        input_gff = utils.parse_table(input_gf_list[0], "\t")
+    else:
+        input_loci = []
+        for gff_file in input_gf_list:
+            print("\tprocessing {}".format(gff_file))
+            gff = utils.parse_table(gff_file, "\t")
+            gff_collection = utils.gff_to_locus_collection(gff, 50)
+            input_loci += gff_collection.get_loci()
+
+        input_collection = utils.LocusCollection(input_loci, 50)
+        input_collection = (
+            input_collection.stitch_collection()
+        )  # stitches to produce unique regions
+
+        input_gff = utils.locus_collection_to_gff(input_collection)
+
+    formatted_gff = []
+    # now number things appropriately
+    for i, line in enumerate(input_gff):
+
+        # use the coordinates to make a new id input_name_chr_sense_start_stop
+        chrom = line[0]
+        coords = [int(line[3]), int(line[4])]
+        sense = line[6]
+
+        line_id = "{}_{}".format(input_name, str(i + 1))  # 1 indexing
+
+        new_line = [
+            chrom,
+            line_id,
+            line_id,
+            min(coords),
+            max(coords),
+            "",
+            sense,
+            "",
+            line_id,
+        ]
+        formatted_gff.append(new_line)
+
+    # name of the master input gff file
+    master_gff_file = os.path.join(
+        gff_folder, "{}_{}_ALL_-0_+0.gff".format(genome, input_name)
+    )
+    utils.unparse_table(formatted_gff, master_gff_file, "\t")
+
+    print("USING {} AS THE INPUT GFF".format(master_gff_file))
 
     # GET CHROMS FOUND IN THE BAMS
     print("GETTING CHROMS IN bam_fileS")
@@ -166,11 +297,11 @@ def main():
 
     # LOADING IN THE GFF AND FILTERING BY CHROM
     print("LOADING AND FILTERING THE GFF")
-    input_gff = rose2_utils.filter_gff(input_gff_file, bam_chrom_list)
+    input_gff = rose2_utils.filter_gff(master_gff_file, bam_chrom_list)
     # LOADING IN THE BOUND REGION REFERENCE COLLECTION
     print("LOADING IN GFF REGIONS")
     reference_collection = utils.gff_to_locus_collection(input_gff)
-    print("STARTING WITH {} INPUT REGIONS".format(len(reference_collection)))
+
     print("CHECKING REFERENCE COLLECTION:")
     rose2_utils.check_ref_collection(reference_collection)
 
@@ -178,17 +309,16 @@ def main():
     # see if there's a mask
     if args.mask:
         mask_file = args.mask
-        print("USING MASK FILE {}".format(mask_file))
         # if it's a bed file
         if mask_file.split(".")[-1].upper() == "BED":
-            mask_gff = utils.bed_to_gff(mask_file)
+            mask_gff = utils.bedToGFF(mask_file)
         elif mask_file.split(".")[-1].upper() == "GFF":
             mask_gff = utils.parse_table(mask_file, "\t")
         else:
             print("MASK MUST BE A .gff or .bed FILE")
-
+            sys.exit()
         mask_collection = utils.gff_to_locus_collection(mask_gff)
-        print("LOADING {} MASK REGIONS".format(str(len(mask_collection))))
+
         # now mask the reference loci
         reference_loci = reference_collection.get_loci()
         filtered_loci = [
@@ -198,7 +328,7 @@ def main():
         ]
         print(
             "FILTERED OUT {} LOCI THAT WERE MASKED IN {}".format(
-                str(len(reference_loci) - len(filtered_loci)), mask_file
+                len(reference_loci) - len(filtered_loci), mask_file
             )
         )
         reference_collection = utils.LocusCollection(filtered_loci, 50)
@@ -214,18 +344,10 @@ def main():
         annot_file,
         remove_tss,
     )
+
     # NOW MAKE A STITCHED COLLECTION GFF
     print("MAKING GFF FROM STITCHED COLLECTION")
     stitched_gff = utils.locus_collection_to_gff(stitched_collection)
-    # making sure start/stop ordering are correct
-    for i in range(len(stitched_gff)):
-
-        line = stitched_gff[i]
-        start = int(line[3])
-        stop = int(line[4])
-        if start > stop:
-            line[3] = stop
-            line[4] = start
 
     print(stitch_window)
     print(type(stitch_window))
@@ -259,6 +381,7 @@ def main():
         )
 
     # WRITING DEBUG OUTPUT TO DISK
+
     if debug:
         print("WRITING DEBUG OUTPUT TO DISK AS {}".format(debug_out_file))
         utils.unparse_table(debug_output, debug_out_file, "\t")
@@ -333,16 +456,20 @@ def main():
         ref_name=stitched_gff_name,
     )
 
+    print("FINDING AVERAGE SIGNAL AMONGST BAMS")
+    meta_output_file = collapse_region_map(
+        output_file1, input_name + "_MERGED_SIGNAL", control_bams=args.control
+    )
+
+    # now try the merging
+
     print("CALLING AND PLOTTING SUPER-ENHANCERS")
 
-    if args.control:
-        control_name = os.path.basename(args.control)
-    else:
-        control_name = "NONE"
+    control_name = "NONE"
     cmd = "Rscript {} {} {} {} {}".format(
         os.path.join(ROOT_DIR, "scripts", "ROSE2_callSuper.R"),
         out_folder + "/",  # TODO: fix R script so it does not require '/'
-        output_file1,
+        meta_output_file,
         input_name,
         control_name,
     )
@@ -351,47 +478,30 @@ def main():
     os.system(cmd)
 
     # calling the gene mapper
-    time.sleep(20)
+    print("CALLING GENE MAPPING")
+
     super_table_file = "{}_SuperEnhancers.table.txt".format(input_name)
-    if args.control:
-        cmd = "ROSE2_geneMapper -g {} -r {} -c {} -i {}".format(
-            genome,
-            args.rankby,
-            args.control,
-            os.path.join(out_folder, super_table_file),
-        )
-    else:
-        cmd = "ROSE2_geneMapper -g {} -r {} -i {}".format(
-            genome, args.rankby, os.path.join(out_folder, super_table_file)
-        )
+
+    # for now don't use ranking bam to call top genes
+    cmd = "ROSE2_geneMapper -g {} -i {} -f".format(
+        genome, os.path.join(out_folder, super_table_file)
+    )
+    print(cmd)
     os.system(cmd)
 
     stretch_table_file = "{}_StretchEnhancers.table.txt".format(input_name)
-    if args.control:
-        cmd = "ROSE2_geneMapper -g {} -r {} -c {} -i {}".format(
-            genome,
-            args.rankby,
-            args.control,
-            os.path.join(out_folder, stretch_table_file),
-        )
-    else:
-        cmd = "ROSE2_geneMapper -g {} -r {} -i {}".format(
-            genome, args.rankby, os.path.join(out_folder, stretch_table_file)
-        )
+
+    cmd = "ROSE2_geneMapper -g {} -i {} -f".format(
+        genome, os.path.join(out_folder, stretch_table_file)
+    )
+    print(cmd)
     os.system(cmd)
 
     superstretch_table_file = "{}_SuperStretchEnhancers.table.txt".format(input_name)
-    if args.control:
-        cmd = "ROSE2_geneMapper -g {} -r {} -c {} -i {}".format(
-            genome,
-            args.rankby,
-            args.control,
-            os.path.join(out_folder, superstretch_table_file),
-        )
-    else:
-        cmd = "ROSE2_geneMapper -g {} -r {} -i {}".format(
-            genome, args.rankby, os.path.join(out_folder, superstretch_table_file)
-        )
+
+    cmd = "ROSE2_geneMapper.py -g {} -i {} -f".format(
+        genome, out_folder, superstretch_table_file
+    )
     os.system(cmd)
 
 
