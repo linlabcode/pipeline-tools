@@ -28,6 +28,7 @@ setup(
         "pipeline_tools/scripts/bamPlot_turbo.R",
         "pipeline_tools/scripts/ROSE2_callSuper.R",
         "pipeline_tools/scripts/ROSE2_stitchOpt.R",
+        "pipeline_tools/scripts/clusterEnhancer.R",
     ],
     entry_points={
         "console_scripts": [
@@ -37,6 +38,7 @@ setup(
             "ROSE2_geneMapper=pipeline_tools.tools.ROSE2_geneMapper:main",
             "ROSE2=pipeline_tools.tools.ROSE2_main:main",
             "ROSE2_META=pipeline_tools.tools.ROSE2_META:main",
+            "clusterEnhancer=pipeline_tools.tools.clusterEnhancer:main",
         ]
     },
     package_data={"pipeline_tools": ["annotation/*"]},
@@ -59,5 +61,6 @@ setup(
         "ROSE2_geneMapper",
         "ROSE2",
         "ROSE2_META",
+        "clusterEnhancer",
     ],
 )

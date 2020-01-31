@@ -18,7 +18,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import datetime
 import os
+import random
 import sys
 
 import numpy
@@ -30,7 +32,7 @@ from pipeline_tools.utils import utils
 # ============================MAPPING FUNCTIONS===============================
 # ============================================================================
 
-# dataFile -> bam_list
+# data_file -> bam_list
 def map_regions(
     bam_list,
     gff_list,
@@ -249,3 +251,228 @@ def make_signal_table(
     else:
         utils.unparse_table(signal_table, output, "\t")
         return signal_table
+
+
+# =================================================================
+# ===================DATA TABLE FUNCTIONS==========================
+# =================================================================
+
+
+def load_data_table(data_file):
+    """Load the master data table."""
+
+    if isinstance(data_file, str):
+        data_table = utils.parse_table(data_file, "\t")
+    else:
+        data_table = list(data_file)
+    # first check to make sure the table is formatted correctly
+    for line in data_table:
+        # print(line)
+        if len(line) != 9:
+            print("this line did not pass")
+            print(line)
+            data_table = format_data_table(data_file)
+            break
+
+    data_dict = defaultdict(dict)
+    for line in data_table[1:]:
+        data_dict[line[3]]["folder"] = utils.format_folder(line[0], False)
+        data_dict[line[3]]["uniqueID"] = line[1]
+        data_dict[line[3]]["genome"] = line[2].upper()
+        genome = line[2]
+
+        data_dict[line[3]]["sam"] = "".join([line[0], line[1], ".", genome, ".bwt.sam"])
+        data_dict[line[3]]["ylf"] = "".join([line[0], line[1], ".", genome, ".bwt.ylf"])
+        data_dict[line[3]]["enriched"] = line[5]
+        data_dict[line[3]]["background"] = line[4]
+        data_dict[line[3]]["enrichedMacs"] = line[6]
+        color_string = line[7].replace('"', "")
+        data_dict[line[3]]["color"] = color_string
+        data_dict[line[3]]["fastq"] = line[8]
+
+        # figure out which bam convention we are using
+        # default will be new convention
+        # look in the bam_folder for all bams that might fit the bill
+        bam_folder = str(line[0])
+        bam_file_list = [
+            x for x in os.listdir(bam_folder) if len(x) > 0 and x[0] != "."
+        ]
+
+        bam_file_candidates = [
+            x
+            for x in bam_file_list
+            if x.count(line[1]) == 1
+            and x.split(".")[-1] == "bam"
+            and x.count("bai") == 0
+        ]
+        if not bam_file_candidates:
+            print(
+                "UNABLE TO FIND A BAM FILE IN {} WITH UNIQUE ID {}".format(
+                    bam_folder, line[1]
+                )
+            )
+            full_bam_path = ""
+        elif len(bam_file_candidates) > 1:
+            print(
+                "MUTLIPLE BAM FILES IN {} WITH UNIQUE ID {}. NO BAM ASISGNED".format(
+                    bam_folder, line[1]
+                )
+            )
+            print(bam_file_candidates)
+            full_bam_path = ""
+        else:
+            bam_file = bam_file_candidates[0]
+            full_bam_path = os.path.abspath(os.path.join(bam_folder, bam_file))
+            full_bai_path = full_bam_path + ".bai"
+
+        if full_bam_path:
+            try:
+                open(full_bam_path, "r").close()
+            except (IOError, FileNotFoundError):
+                print("ERROR: BAM FILE {} DOES NOT EXIST".format(full_bam_path))
+                full_bam_path = ""
+            try:
+                open(full_bai_path, "r").close()
+            except (IOError, FileNotFoundError):
+                print(
+                    "ERROR: BAM FILE {} DOES NOT HAVE BAI INDEX".format(full_bam_path)
+                )
+                full_bam_path = ""
+
+        data_dict[line[3]]["bam"] = full_bam_path
+
+    return data_dict
+
+
+def format_data_table(data_file):
+    """Formats the data_file and rewrite.
+
+    First 3 columns are required for every line. If they aren't there the line is deleted.
+
+    """
+    print("reformatting data table")
+
+    data_table = utils.parse_table(data_file, "\t")
+
+    new_data_table = [
+        [
+            "FILE_PATH",
+            "UNIQUE_ID",
+            "GENOME",
+            "NAME",
+            "BACKGROUND",
+            "ENRICHED_REGION",
+            "ENRICHED_MACS",
+            "COLOR",
+            "FASTQ_FILE",
+        ]
+    ]
+    # first check to make sure the table is formatted correctly
+    for line in data_table[1:]:
+        if len(line) < 3:
+            continue
+        # this spots header lines that may be out of place
+        if line[0] == "FILE_PATH":
+            continue
+        # check if it at least has the first 3 columns filled in
+        if len(line[0]) == 0 or len(line[1]) == 0 or len(line[2]) == 0:
+            print("ERROR required fields missing in line")
+            print(line)
+        # if the first three are filled in, check to make sure there are 8 columns
+        else:
+            if len(line) > 3 and len(line) < 9:
+                new_line = line + (8 - len(line)) * [""] + ["NA"]
+                new_data_table.append(new_line)
+            elif len(line) >= 9:
+                new_line = line[0:9]
+                new_data_table.append(new_line)
+
+    # lower case all of the genomes
+    # make the color 0,0,0 for blank lines and strip out any " marks
+    for i in range(1, len(new_data_table)):
+        new_data_table[i][2] = new_data_table[i][2].lower()
+        color = new_data_table[i][7]
+        if len(color) == 0:
+            new_data_table[i][7] = "0,0,0"
+    utils.unparse_table(new_data_table, data_file, "\t")
+
+    return new_data_table
+
+
+# ==========================================================================
+# ==============================CALLING ROSE================================
+# ==========================================================================
+
+
+def call_rose2(
+    data_file,
+    macs_enriched_folder,
+    parent_folder,
+    names_list=[],
+    extra_map=[],
+    input_file="",
+    tss=2500,
+    stitch="",
+    bash_file_name="",
+    mask="",
+    use_background=True,
+):
+    """Call rose w/ standard parameters."""
+    data_dict = load_data_table(data_file)
+    if len(names_list) == 0:
+        names_list = list(data_dict.keys())
+
+    # a time_stamp to name this pipeline batch of files
+    time_stamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    # a random integer ticker to help name files
+    rand_ticker = random.randint(0, 10000)
+
+    utils.format_folder(parent_folder, True)
+
+    if len(bash_file_name) == 0:
+        bash_file_name = os.path.join(
+            parent_folder, "rose_{}_{}.sh".format(time_stamp, rand_ticker)
+        )
+    with open(bash_file_name, "w") as bash_file:
+        map_string = [data_dict[name]["bam"] for name in extra_map]
+        map_string = ",".join(map_string)
+
+        for name in names_list:
+            genome = data_dict[name]["genome"]
+            bam_file = data_dict[name]["bam"]
+
+            background_name = data_dict[name]["background"]
+            if use_background and background_name in data_dict:
+                background_bam_file = data_dict[background_name]["bam"]
+                has_background = True
+            else:
+                has_background = False
+
+            if len(input_file) == 0:
+                macs_file = os.path.join(
+                    macs_enriched_folder, data_dict[name]["enrichedMacs"]
+                )
+            else:
+                macs_file = input_file
+            output_folder = os.path.join(parent_folder, "{}_ROSE".format(name))
+            print(name)
+            bash_file.write("#running ROSE2 on {}\n".format(name))
+            rose_cmd = "ROSE2 -g {} -i {} -r {} -o {} -t {}".format(
+                genome, macs_file, bam_file, output_folder, tss
+            )
+
+            if len(str(stitch)) > 0:
+                rose_cmd += " -s {}".format(stitch)
+            if has_background:
+                rose_cmd += " -c {}".format(background_bam_file)
+            if len(map_string) > 0:
+                rose_cmd += " -b {}".format(map_string)
+            if len(mask) > 0:
+                rose_cmd += " --mask {}".format(mask)
+
+            bash_file.write(rose_cmd)
+            bash_file.write("\n\n")
+
+    print("Wrote rose commands to {}".format(bash_file_name))
+
+    return bash_file_name
