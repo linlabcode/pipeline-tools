@@ -476,3 +476,40 @@ def call_rose2(
     print("Wrote rose commands to {}".format(bash_file_name))
 
     return bash_file_name
+
+
+# ==============================================================================
+# ==============================ENHANCER FUNCTIONS==============================
+# ==============================================================================
+
+
+def get_file(file_string, file_list, parent_folder):
+    """Returns full path of file from file_list containing the file_string.
+
+    Return an error if multiple files match.
+
+    """
+    if not utils.format_folder(parent_folder, False):
+        print("ERROR: Folder {} does not exist".format(parent_folder))
+        sys.exit()
+    parent_folder = utils.format_folder(parent_folder, False)
+    match_files = [
+        file_name for file_name in file_list if file_name.count(file_string) == 1
+    ]
+    if not match_files:
+        print(
+            "ERROR: No files found in {} with {} in title".format(
+                parent_folder, file_string
+            )
+        )
+        sys.exit()
+    if len(match_files) > 1:
+        print(
+            "ERROR: Multiple files found in {} with {} in title".format(
+                parent_folder, file_string
+            )
+        )
+        sys.exit()
+    match_file_path = os.path.join(parent_folder, match_files[0])
+
+    return match_file_path

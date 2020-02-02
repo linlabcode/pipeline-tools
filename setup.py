@@ -29,6 +29,8 @@ setup(
         "pipeline_tools/scripts/ROSE2_callSuper.R",
         "pipeline_tools/scripts/ROSE2_stitchOpt.R",
         "pipeline_tools/scripts/clusterEnhancer.R",
+        "pipeline_tools/scripts/dynamicEnhancer_plot.R",
+        "pipeline_tools/scripts/dynamicEnhancer_rank.R",
     ],
     entry_points={
         "console_scripts": [
@@ -39,6 +41,7 @@ setup(
             "ROSE2=pipeline_tools.tools.ROSE2_main:main",
             "ROSE2_META=pipeline_tools.tools.ROSE2_META:main",
             "clusterEnhancer=pipeline_tools.tools.clusterEnhancer:main",
+            "dynamicEnhancer=pipeline_tools.tools.dynamicEnhancer:main",
         ]
     },
     package_data={"pipeline_tools": ["annotation/*"]},
@@ -62,5 +65,6 @@ setup(
         "ROSE2",
         "ROSE2_META",
         "clusterEnhancer",
+        "dynamicEnhancer",
     ],
 )
