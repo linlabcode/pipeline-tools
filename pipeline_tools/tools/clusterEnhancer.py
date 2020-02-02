@@ -42,38 +42,6 @@ from pipeline_tools.utils import pipeline_utils, utils
 # ==========================================================================
 
 
-def get_file(file_string, file_list, parent_folder):
-    """Returns full path of file from file_list containing the file_string.
-
-    Return an error if multiple files match.
-
-    """
-    if not utils.format_folder(parent_folder, False):
-        print("ERROR: Folder {} does not exist".format(parent_folder))
-        sys.exit()
-    parent_folder = utils.format_folder(parent_folder, False)
-    match_files = [
-        file_name for file_name in file_list if file_name.count(file_string) == 1
-    ]
-    if not match_files:
-        print(
-            "ERROR: No files found in {} with {} in title".format(
-                parent_folder, file_string
-            )
-        )
-        sys.exit()
-    if len(match_files) > 1:
-        print(
-            "ERROR: Multiple files found in {} with {} in title".format(
-                parent_folder, file_string
-            )
-        )
-        sys.exit()
-    match_file_path = os.path.join(parent_folder, match_files[0])
-
-    return match_file_path
-
-
 def make_name_dict(data_file, rose_folder, names_list=[], enhancer_type="super"):
     """For each name, check for the presence of an enriched file or allEnhancer table.
 
@@ -255,7 +223,7 @@ def launch_enhancer_mapping(
             if not rose_file_list:
                 print("No files found in {}".format(rose_folder))
                 sys.exit()
-            enhancer_file = get_file(enhancer_string, rose_file_list, rose_folder)
+            enhancer_file = pipeline_utils.get_file(enhancer_string, rose_file_list, rose_folder)
             name_dict[name]["enhancer_file"] = enhancer_file
 
     return name_dict
