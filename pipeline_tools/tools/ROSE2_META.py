@@ -79,7 +79,6 @@ def main():
         "-r",
         "--rankby",
         dest="rankby",
-        nargs=1,
         required=True,
         help="Enter a comma separated list of bams to rank by",
     )
