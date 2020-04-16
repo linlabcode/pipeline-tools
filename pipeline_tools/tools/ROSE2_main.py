@@ -96,7 +96,7 @@ def main():
     out_folder = utils.format_folder(args.out, True)
 
     # figuring out folder schema
-    gff_folder = utils.format_folder(os.path.join(out_folder + "gff"), True)
+    gff_folder = utils.format_folder(os.path.join(out_folder, "gff"), True)
     mapped_folder = utils.format_folder(os.path.join(out_folder, "mapped_gff"), True)
 
     # GETTING INPUT FILE
