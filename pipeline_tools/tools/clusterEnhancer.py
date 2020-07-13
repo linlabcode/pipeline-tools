@@ -291,7 +291,7 @@ def merge_collections(name_dict, analysis_name, output="", super_only=True):
     merged_collection = utils.LocusCollection(all_loci, 50)
 
     # stitch the collection together
-    stitched_collection = merged_collection.stitchCollection()
+    stitched_collection = merged_collection.stitch_collection()
     stitched_loci = stitched_collection.get_loci()
     print("IDENTIFIED {} CONSENSUS ENHANCER REGIONS".format(str(len(stitched_loci))))
 

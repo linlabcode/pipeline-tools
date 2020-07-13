@@ -958,7 +958,7 @@ def main():
     # now create the background subtracted summarized average table
     print("CREATING AN AVERAGE SIGNAL TABLE")
     average_table = make_average_table(
-        output_folder, analysis_name, use_background=args.control
+        output_folder, analysis_name, use_background=args.control  # TODO: fix to True or False
     )
     average_table_path = os.path.join(
         output_folder, "{}_average_table.txt".format(analysis_name)
