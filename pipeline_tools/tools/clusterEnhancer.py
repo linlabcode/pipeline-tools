@@ -292,7 +292,7 @@ def merge_collections(name_dict, analysis_name, output="", super_only=True):
 
     # stitch the collection together
     stitched_collection = merged_collection.stitch_collection()
-    stitched_loci = stitched_collection.get_loci()
+    stitched_loci = list(stitched_collection.get_loci())
     print("IDENTIFIED {} CONSENSUS ENHANCER REGIONS".format(str(len(stitched_loci))))
 
     # sort by size and provide a unique ID
