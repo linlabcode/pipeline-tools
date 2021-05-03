@@ -465,7 +465,7 @@ def make_enhancer_signal_table(
 def call_r_script(genome, output_folder, analysis_name, signal_table_file):
     """Call the R script to do clustering and heatmap."""
     cluster_table = os.path.join(
-        output_folder, "{}_{}_cluster_table.txt".format(genome, analysis_name)
+        output_folder, "{}_{}_clusterTable.txt".format(genome, analysis_name)
     )
 
     r_cmd = "Rscript {} {} {} {} {}".format(
